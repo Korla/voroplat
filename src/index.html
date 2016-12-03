@@ -1,0 +1,45 @@
+<html>
+<head>
+	<title>VoroPlat</title>
+  <link rel="stylesheet" href="index.css"/>
+  <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Molengo">
+  <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Cantarell">
+  <link rel="stylesheet" type="text/css" href="http://alexbeutel.com/styles.css">
+</head>
+
+  <script src="sylvester.js"></script>
+	<script src="glUtils.js"></script>
+
+	<script id="shader-fs" type="x-shader/x-fragment">
+	  #ifdef GL_ES
+		precision highp float;
+	  #endif
+
+	  varying vec4 vColor;
+
+	  void main(void) {
+	    gl_FragColor = vColor;
+	  }
+	</script>
+
+	<script id="shader-vs" type="x-shader/x-vertex">
+	  attribute vec3 aVertexPosition;
+	  attribute vec4 aVertexColor;
+
+	  uniform mat4 uMVMatrix;
+	  uniform mat4 uPMatrix;
+
+	  varying vec4 vColor;
+
+	  void main(void) {
+	    gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+	    vColor = aVertexColor;
+	  }
+	</script>
+
+	<body>
+		<canvas id="2d-canvas" class="2d-canvas" width="900" height="675"></canvas>
+		<canvas id="main-canvas" width="900" height="675"></canvas>
+	  <script src="index.js"></script>
+  </body>
+</html>

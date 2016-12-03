@@ -1,0 +1,30 @@
+node_modules/
+release/
+build/
+buildMirthIntegrations/
+tests-build/
+tests-coverage/
+src/bower
+src/style/*.css
+*.map
+*.log
+bower_components/
+.sass-cache/
+# Webstorm
+.idea
+# MAC specific
+.DS_Store
+# Windows specific
+Thumbs.db
+# Emacs temporary files
+*.*~
+.#*
+\#**#
+\ \**#
+\ \*Minibuf-10\*
+
+\*Minibuf-10\*
+*.swp
+
+# For the on-the-fly uglify middleware
+.cache

@@ -1,0 +1,8 @@
+canvas {
+  border: none;
+  position: absolute;
+}
+
+.2d-canvas {
+  z-index: 100;
+}
