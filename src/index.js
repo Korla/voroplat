@@ -28,19 +28,20 @@
 
   var xRange = range(grid.xSize);
   var yRange = range(grid.ySize);
-  var red = [0,0,0,1];
-  var green = [0,0,0,1];
-  xRange
+  var green = () => fragmentsColor(fragments * 3, [0.1 + Math.random() * 0.2,0.4,0.1 + Math.random() * 0.2,1]);
+  var blue = ratio => fragmentsColor(fragments * 3, [ratio,ratio/2,0.5,1]);
+  var coordinates = xRange
     .reduce((prev, x) => {
       prev = prev.concat(yRange.map(y => ({x, y})));
       return prev;
-    }, [])
-    .map(({x,y,col}) => ({
+    }, []);
+  coordinates
+    .map(({x,y}) => ({
       x: width * (x + 0.5) / grid.xSize,
       y: height * (y + 0.5) / grid.ySize,
-      col
+      col: y < 13 ? blue(y / grid.ySize) : green()
     }))
-    .map(({x,y,col}) => addCone(x,y,col));
+    .map(addCone);
 
   redraw();
 
@@ -185,12 +186,12 @@
   	ctx.fill();
   }
 
-  function addCone(cx, cy, cb) {
+  function addCone({x, y, col}) {
   	var c = new Point();
-  	if(!cb) cb = randColor(fragments * 3);
-  	c.x = cx;
-  	c.y = cy;
-  	c.colorArray = cb;
+  	if(!col) col = fragmentsColor(fragments * 3);
+  	c.x = x;
+  	c.y = y;
+  	c.colorArray = col;
   	c.colorSize = fragments*3;
   	points = points.concat(c);
   	return c;
@@ -242,7 +243,8 @@
   function canvasClick(e) {
     drawTools.mouseIsDown = false;
     var [x, y] = getCursorPosition(e);
-    addCone(x, y, drawTools.curColor);
+    var col = drawTools.curColor;
+    addCone({x, y, col});
     drawTools.curColor = null;
     redraw();
   }
@@ -264,7 +266,7 @@
 
   function startDown(e) {
   	drawTools.mouseIsDown = true;
-  	drawTools.curColor = randColor(fragments*3);
+  	drawTools.curColor = fragmentsColor(fragments * 3);
   	canvasMouseMove(e);
   }
 
@@ -283,7 +285,7 @@
   }
 
   function redraw(p) {
-  	gl2d.clearRect(0,0,$('2d-canvas').width, $('2d-canvas').height);
+  	gl2d.clearRect(0,0,canvas2d.width, canvas2d.height);
 
   	gl.clearColor(0.0, 0.0, 0.0, 1.0);
   	gl.clearDepth(1.0);
@@ -353,17 +355,12 @@
   	var vfunc;
   }
 
-  function randColor(size) {
-  	var i1 = Math.random();
-  	var i2 = Math.random();
-  	var i3 = Math.random();
+  function fragmentsColor(size, color) {
+    color = color || [Math.random(), Math.random(), Math.random(), 1.0];
 
-    var color = [];
-    for(var i = 0; i < size; i++){
-    	color = color.concat([i1, i2, i3, 1.0]);
-    }
-
-  	return color;
+    return range(size)
+      .map(() => color)
+      .reduce(...flatten());
   }
 
   function getDataForLog() {
@@ -382,6 +379,16 @@
       retVal.push(i);
     }
     return retVal;
+  }
+
+  function flatten() {
+    return [
+      (prev, curr) => {
+        prev = prev.concat(curr);
+        return prev;
+      },
+      []
+    ]
   }
 
   function $(id) { return document.getElementById(id); }
