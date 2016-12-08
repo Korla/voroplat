@@ -5,6 +5,7 @@
   var pMatrix;
   var mvMatrix;
   var points = [];
+  var player = [];
   var coneRadius = 20;
   var fragments = 50;
 
@@ -156,11 +157,6 @@
     y: null,
     canvasClick: (e) => {
       drawTools.mouseIsDown = false;
-      var [x, y] = drawTools.getCursorPosition(e);
-      var col = drawTools.curColor;
-      addCone({x, y, col});
-      drawTools.curColor = null;
-      redraw();
     },
     getCursorPosition: (e) => {
     	if (e.pageX || e.pageY) {
@@ -173,7 +169,7 @@
     	drawTools.x -= mainCanvas.offsetLeft;
       drawTools.y -= mainCanvas.offsetTop;
 
-    	return [drawTools.x,drawTools.y];
+    	return [drawTools.x, drawTools.y];
     },
     startDown: (e) => {
     	drawTools.mouseIsDown = true;
@@ -182,15 +178,15 @@
     canvasMouseMove: (e) => {
     	if(!drawTools.mouseIsDown) return;
 
-    	var p = drawTools.getCursorPosition(e);
-
-    	var c = new Point();
-    	c.x = p[0];
-    	c.y = p[1];
-    	c.colorArray = drawTools.curColor;
-    	c.colorSize = fragments*3;
-
-    	redraw(c);
+    	var [x,y] = drawTools.getCursorPosition(e);
+      
+    	player = [
+        new Point(x, y, drawTools.curColor, fragments*3),
+        new Point(x + 10, y, drawTools.curColor, fragments*3),
+        new Point(x, y + 10, drawTools.curColor, fragments*3),
+        new Point(x + 10, y + 10, drawTools.curColor, fragments*3)
+      ];
+    	redraw();
     }
   };
 
@@ -219,7 +215,7 @@
   var pointVertexPositionBuffer = setup.genPointCone();
   var pointVertexColorBuffer = setup.pointColor();
   setup.initEventListeners(mainCanvas, canvas2d);
-  setup.generateEnv(grid).map(addCone);
+  setup.generateEnv(grid).forEach(addCone);
 
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clearDepth(1.0);
@@ -231,34 +227,16 @@
   ortho(0, gl.viewportWidth, gl.viewportHeight, 0, -5, 5000);
   redraw();
 
-  function getColorBuffer(color, size) {
-  	var tempVertexColorBuffer = gl.createBuffer();
-  	gl.bindBuffer(gl.ARRAY_BUFFER, tempVertexColorBuffer);
-
-  	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(color), gl.STATIC_DRAW);
-  	tempVertexColorBuffer.itemSize = 4;
-  	tempVertexColorBuffer.numItems = size;
-  	return tempVertexColorBuffer;
-  }
-
   function addCone({x, y, col}) {
-  	var c = new Point();
   	if(!col) col = fragmentsColor(fragments * 3);
-  	c.x = x;
-  	c.y = y;
-  	c.colorArray = col;
-  	c.colorSize = fragments*3;
-  	points = points.concat(c);
-  	return c;
+  	points = points.concat(new Point(x, y, col, fragments*3));
   }
 
-  function redraw(p) {
+  function redraw() {
     //console.log(p, (new Error()).stack);
     gl2d.clearRect(0,0,canvas2d.width, canvas2d.height);
     points.forEach(drawCone);
-  	if(p) {
-  		drawCone(p);
-  	}
+    player.forEach(drawCone);
   }
 
   function drawCone(p) {
@@ -277,13 +255,23 @@
   	gl.bindBuffer(gl.ARRAY_BUFFER, coneVertexPositionBuffer);
   	gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, coneVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
-  	gl.bindBuffer(gl.ARRAY_BUFFER, getColorBuffer(p.colorArray,p.colorSize));
+  	gl.bindBuffer(gl.ARRAY_BUFFER, getColorBuffer(p.colorArray, p.colorSize));
   	gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
 
     setMatrixUniforms();
   	gl.drawArrays(gl.TRIANGLES, 0, coneVertexPositionBuffer.numItems);
-    drawCircle2D(gl2d, p.x,p.y, 2.5);
-    gl.disable(gl.BLEND);
+    // drawCircle2D(gl2d, p.x,p.y, 2.5);
+    // gl.disable(gl.BLEND);
+  }
+
+  function getColorBuffer(colorArray, size) {
+  	var tempVertexColorBuffer = gl.createBuffer();
+  	gl.bindBuffer(gl.ARRAY_BUFFER, tempVertexColorBuffer);
+
+  	gl.bufferData(gl.ARRAY_BUFFER, colorArray, gl.STATIC_DRAW);
+  	tempVertexColorBuffer.itemSize = 4;
+  	tempVertexColorBuffer.numItems = size;
+  	return tempVertexColorBuffer;
   }
 
   function ortho(left, right, bottom, top, znear, zfar){
@@ -337,15 +325,16 @@
     return shader;
   }
 
-  function Point() {
-  	var colorBuffer;
-  	var colorArray;
-  	var colorSize;
-  	var x, y;
-  	var vx, vy;
-
-  	var angle;
-  	var vfunc;
+  function Point(x, y, colorArray, colorSize) {
+      this.x = x;
+      this.y = y;
+      this.colorArray = new Float32Array(colorArray);
+      this.colorSize = colorSize;
+      this.colorBuffer = null;
+      this.vx = null;
+      this.vy = null;
+      this.angle = null;
+      this.vfunc = null;
   }
 
   function drawCircle2D(ctx, x, y, radius) {
