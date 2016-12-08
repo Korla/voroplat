@@ -5,10 +5,10 @@
   var pMatrix;
   var mvMatrix;
   var points = [];
-  var coneRadius = 1000;
+  var coneRadius = 20;
   var fragments = 50;
 
-  var grid = {xSize: 30, ySize: 30};
+  var grid = {xSize: 45, ySize: 30};
 
   var setup = {
     initGL: (mainCanvas, canvas2d) => {
@@ -21,7 +21,6 @@
     		gl.viewportHeight = mainCanvas.height;
     	} catch(e) { }
     	if (!gl) { alert('Could not initialize WebGL, sorry :-('); }
-      canvas2d.style.zIndex = '100';
       var gl2d = canvas2d.getContext('2d');
       return {gl, gl2d, width, height};
     },
@@ -138,8 +137,9 @@
         }, []);
       return coordinates
         .map(({x,y}) => {
-          var yDelta = y%2 === 0 ? 0 : 0.5;
-          var xDelta = x%2 === 0 ? 0 : 0.5;
+          var yDelta = x%2 === 0 ? 0 : 0.5;
+          // var xDelta = y%2 === 0 ? 0 : 0.5;
+          var xDelta = 0.5;
           return {
             x: width / grid.xSize * (x + xDelta),
             y: height / grid.ySize * (y + yDelta),
@@ -218,7 +218,7 @@
   var coneVertexPositionBuffer = setup.genCone();
   var pointVertexPositionBuffer = setup.genPointCone();
   var pointVertexColorBuffer = setup.pointColor();
-  setup.initEventListeners(canvas2d);
+  setup.initEventListeners(mainCanvas, canvas2d);
   setup.generateEnv(grid).map(addCone);
 
   gl.clearColor(0.0, 0.0, 0.0, 1.0);

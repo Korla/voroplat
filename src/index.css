@@ -3,6 +3,6 @@ canvas {
   position: absolute;
 }
 
-.2d-canvas {
-  z-index: 100;
+.canvas-2d {
+  /*z-index: 100;*/
 }
