@@ -9,7 +9,9 @@
   var coneRadius = 20;
   var fragments = 50;
 
-  var grid = {xSize: 45, ySize: 30};
+  var ratio = 1.5;
+  var size = 30;
+  var grid = {xSize: size * ratio, ySize: size};
 
   var setup = {
     initGL: (mainCanvas, canvas2d) => {
@@ -220,7 +222,6 @@
         new Point(x, y + 10, drawTools.curColor, fragments*3),
         new Point(x + 10, y + 10, drawTools.curColor, fragments*3)
       ];
-    	redraw();
     }
   };
 
@@ -253,7 +254,11 @@
 
   gl.bindBuffer(gl.ARRAY_BUFFER, coneVertexPositionBuffer);
   gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, coneVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-  redraw();
+
+  (function loop(timestamp) {
+    redraw();
+    window.requestAnimationFrame(loop);
+  })();
 
   function addCone({x, y, col}) {
   	if(!col) col = fragmentsColor(fragments * 3);
