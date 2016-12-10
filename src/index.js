@@ -26,8 +26,8 @@
       return {gl, gl2d, width, height};
     },
     initShaders: () => {
-    	var fragmentShader = getShader(gl, 'shader-fs');
-    	var vertexShader = getShader(gl, 'shader-vs');
+    	var fragmentShader = setup.getShader(gl, 'shader-fs');
+    	var vertexShader = setup.getShader(gl, 'shader-vs');
 
     	var shaderProgram = gl.createProgram();
     	gl.attachShader(shaderProgram, vertexShader);
@@ -49,6 +49,40 @@
     	shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, 'uPMatrix');
     	shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, 'uMVMatrix');
       return shaderProgram;
+    },
+    getShader: (gl, id) => {
+      var shaderScript = document.getElementById(id);
+      if (!shaderScript) {
+        return null;
+      }
+
+      var str = '';
+      var k = shaderScript.firstChild;
+      while (k) {
+        if (k.nodeType == 3) {
+          str += k.textContent;
+        }
+        k = k.nextSibling;
+      }
+
+      var shader;
+      if (shaderScript.type == 'x-shader/x-fragment') {
+        shader = gl.createShader(gl.FRAGMENT_SHADER);
+      } else if (shaderScript.type == 'x-shader/x-vertex') {
+        shader = gl.createShader(gl.VERTEX_SHADER);
+      } else {
+        return null;
+      }
+
+      gl.shaderSource(shader, str);
+      gl.compileShader(shader);
+
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        alert(gl.getShaderInfoLog(shader));
+        return null;
+      }
+
+      return shader;
     },
     genCone: () => {
     	var coneVertexPositionBuffer = gl.createBuffer();
@@ -106,7 +140,7 @@
       return pointVertexPositionBuffer;
     },
     pointColor: () => {
-    	var size = 20*3;
+    	var size = fragments * 3;
     	var pointVertexColorBuffer = gl.createBuffer();
     	gl.bindBuffer(gl.ARRAY_BUFFER, pointVertexColorBuffer);
 
@@ -179,7 +213,7 @@
     	if(!drawTools.mouseIsDown) return;
 
     	var [x,y] = drawTools.getCursorPosition(e);
-      
+
     	player = [
         new Point(x, y, drawTools.curColor, fragments*3),
         new Point(x + 10, y, drawTools.curColor, fragments*3),
@@ -217,14 +251,8 @@
   setup.initEventListeners(mainCanvas, canvas2d);
   setup.generateEnv(grid).forEach(addCone);
 
-  gl.clearColor(0.0, 0.0, 0.0, 1.0);
-  gl.clearDepth(1.0);
-  gl.enable(gl.DEPTH_TEST);
-  gl.depthFunc(gl.LEQUAL);
-
-  gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  ortho(0, gl.viewportWidth, gl.viewportHeight, 0, -5, 5000);
+  gl.bindBuffer(gl.ARRAY_BUFFER, coneVertexPositionBuffer);
+  gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, coneVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
   redraw();
 
   function addCone({x, y, col}) {
@@ -234,7 +262,16 @@
 
   function redraw() {
     //console.log(p, (new Error()).stack);
-    gl2d.clearRect(0,0,canvas2d.width, canvas2d.height);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clearDepth(1.0);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+
+    gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    ortho(0, gl.viewportWidth, gl.viewportHeight, 0, -5, 5000);
+    gl2d.clearRect(0, 0, canvas2d.width, canvas2d.height);
+
     points.forEach(drawCone);
     player.forEach(drawCone);
   }
@@ -249,80 +286,24 @@
   		return;
   	}
 
-  	loadIdentity();
-  	mvTranslate([p.x, p.y, 0.0]);
+    var m = Matrix.Translation($V([p.x, p.y, 0.0])).ensure4x4();
+    mvMatrix = Matrix.I(4).x(m);
 
-  	gl.bindBuffer(gl.ARRAY_BUFFER, coneVertexPositionBuffer);
-  	gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, coneVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+  	gl.bindBuffer(gl.ARRAY_BUFFER, pointVertexColorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, p.colorArray, gl.STATIC_DRAW);
 
-  	gl.bindBuffer(gl.ARRAY_BUFFER, getColorBuffer(p.colorArray, p.colorSize));
   	gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
 
-    setMatrixUniforms();
-  	gl.drawArrays(gl.TRIANGLES, 0, coneVertexPositionBuffer.numItems);
+    gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, new Float32Array(pMatrix.flatten()));
+    gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, new Float32Array(mvMatrix.flatten()));
+
+    gl.drawArrays(gl.TRIANGLES, 0, coneVertexPositionBuffer.numItems);
     // drawCircle2D(gl2d, p.x,p.y, 2.5);
-    // gl.disable(gl.BLEND);
-  }
-
-  function getColorBuffer(colorArray, size) {
-  	var tempVertexColorBuffer = gl.createBuffer();
-  	gl.bindBuffer(gl.ARRAY_BUFFER, tempVertexColorBuffer);
-
-  	gl.bufferData(gl.ARRAY_BUFFER, colorArray, gl.STATIC_DRAW);
-  	tempVertexColorBuffer.itemSize = 4;
-  	tempVertexColorBuffer.numItems = size;
-  	return tempVertexColorBuffer;
+    gl.disable(gl.BLEND);
   }
 
   function ortho(left, right, bottom, top, znear, zfar){
   	pMatrix = makeOrtho(left, right, bottom, top, znear, zfar)
-  }
-
-  function setMatrixUniforms() {
-    gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, new Float32Array(pMatrix.flatten()));
-    gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, new Float32Array(mvMatrix.flatten()));
-  }
-
-  function loadIdentity() { mvMatrix = Matrix.I(4); }
-
-  function mvTranslate(v) {
-    var m = Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4();
-    mvMatrix = mvMatrix.x(m);
-  }
-
-  function getShader(gl, id) {
-    var shaderScript = document.getElementById(id);
-    if (!shaderScript) {
-      return null;
-    }
-
-    var str = '';
-    var k = shaderScript.firstChild;
-    while (k) {
-      if (k.nodeType == 3) {
-        str += k.textContent;
-      }
-      k = k.nextSibling;
-    }
-
-    var shader;
-    if (shaderScript.type == 'x-shader/x-fragment') {
-      shader = gl.createShader(gl.FRAGMENT_SHADER);
-    } else if (shaderScript.type == 'x-shader/x-vertex') {
-      shader = gl.createShader(gl.VERTEX_SHADER);
-    } else {
-      return null;
-    }
-
-    gl.shaderSource(shader, str);
-    gl.compileShader(shader);
-
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      alert(gl.getShaderInfoLog(shader));
-      return null;
-    }
-
-    return shader;
   }
 
   function Point(x, y, colorArray, colorSize) {
