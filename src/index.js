@@ -295,8 +295,17 @@
       gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, new Float32Array(mvMatrix.flatten()));
 
       gl.drawArrays(gl.TRIANGLES, 0, coneVertexPositionBuffer.numItems);
-      // drawCircle2D(gl2d, p.x, p.y, 1);
+      // gui.drawCircle2D(gl2d, p.x, p.y, 1);
       gl.disable(gl.BLEND);
+    },
+    drawCircle2D: (ctx, x, y, radius) => {
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI*2, false);
+      ctx.closePath();
+      ctx.strokeStyle = '#000';
+      ctx.stroke();
+      ctx.fillStyle = '#000';
+      ctx.fill();
     }
   };
 
@@ -325,16 +334,6 @@
       this.vy = null;
       this.angle = null;
       this.vfunc = null;
-  }
-
-  function drawCircle2D(ctx, x, y, radius) {
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI*2, false);
-    ctx.closePath();
-    ctx.strokeStyle = '#000';
-    ctx.stroke();
-    ctx.fillStyle = '#000';
-    ctx.fill();
   }
 
   function fragmentsColor(size, color) {
