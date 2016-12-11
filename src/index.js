@@ -255,56 +255,60 @@
   gl.bindBuffer(gl.ARRAY_BUFFER, coneVertexPositionBuffer);
   gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, coneVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
+  gl.clearColor(0.0, 0.0, 0.0, 1.0);
+  gl.clearDepth(1.0);
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthFunc(gl.LEQUAL);
+
+  gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  ortho(0, gl.viewportWidth, gl.viewportHeight, 0, -5, 5000);
+
+  var game = {
+    tick: (timestamp) => {}
+  };
+
+  var gui = {
+    redraw: () => {
+      points.forEach(gui.drawCone);
+      player.forEach(gui.drawCone);
+    },
+    drawCone: p => {
+      if(
+        p.x > (mainCanvas.width + coneRadius) ||
+        p.x < (-1 * coneRadius) ||
+        p.y > (mainCanvas.height + coneRadius) ||
+        p.y < (-1 * coneRadius)) {
+         //cone will not influence anything and is just slow, dont plot it
+      	return;
+      }
+
+      var m = Matrix.Translation($V([p.x, p.y, 0.0])).ensure4x4();
+      mvMatrix = Matrix.I(4).x(m);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, pointVertexColorBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, p.colorArray, gl.STATIC_DRAW);
+
+      gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+
+      gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, new Float32Array(pMatrix.flatten()));
+      gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, new Float32Array(mvMatrix.flatten()));
+
+      gl.drawArrays(gl.TRIANGLES, 0, coneVertexPositionBuffer.numItems);
+      // drawCircle2D(gl2d, p.x, p.y, 1);
+      gl.disable(gl.BLEND);
+    }
+  };
+
   (function loop(timestamp) {
-    redraw();
+    game.tick(timestamp);
+    gui.redraw();
     window.requestAnimationFrame(loop);
   })();
 
   function addCone({x, y, col}) {
   	if(!col) col = fragmentsColor(fragments * 3);
   	points = points.concat(new Point(x, y, col, fragments*3));
-  }
-
-  function redraw() {
-    //console.log(p, (new Error()).stack);
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.clearDepth(1.0);
-    gl.enable(gl.DEPTH_TEST);
-    gl.depthFunc(gl.LEQUAL);
-
-    gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    ortho(0, gl.viewportWidth, gl.viewportHeight, 0, -5, 5000);
-    gl2d.clearRect(0, 0, canvas2d.width, canvas2d.height);
-
-    points.forEach(drawCone);
-    player.forEach(drawCone);
-  }
-
-  function drawCone(p) {
-  	if(
-      p.x > (mainCanvas.width + coneRadius) ||
-      p.x < (-1 * coneRadius) ||
-      p.y > (mainCanvas.height + coneRadius) ||
-      p.y < (-1 * coneRadius)) {
-       //cone will not influence anything and is just slow, dont plot it
-  		return;
-  	}
-
-    var m = Matrix.Translation($V([p.x, p.y, 0.0])).ensure4x4();
-    mvMatrix = Matrix.I(4).x(m);
-
-  	gl.bindBuffer(gl.ARRAY_BUFFER, pointVertexColorBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, p.colorArray, gl.STATIC_DRAW);
-
-  	gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
-
-    gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, new Float32Array(pMatrix.flatten()));
-    gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, new Float32Array(mvMatrix.flatten()));
-
-    gl.drawArrays(gl.TRIANGLES, 0, coneVertexPositionBuffer.numItems);
-    // drawCircle2D(gl2d, p.x,p.y, 2.5);
-    gl.disable(gl.BLEND);
   }
 
   function ortho(left, right, bottom, top, znear, zfar){
