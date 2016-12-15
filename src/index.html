@@ -10,11 +10,28 @@
   <script src="sylvester.js"></script>
 	<script src="glUtils.js"></script>
 
-	<script id="shader-fs" type="x-shader/x-fragment">
-	  #ifdef GL_ES
-		precision highp float;
-	  #endif
+	<script id="shader-vs" type="x-shader/x-vertex">
+	  attribute vec3 position;
+	  attribute vec4 color;
 
+	  uniform vec2 worldPosition;
+	  uniform mat4 viewProjection;
+
+	  varying vec4 vColor;
+
+	  void main(void) {
+			mat4 world = mat4(vec4(1,0,0,0),
+												vec4(0,1,0,0),
+												vec4(0,0,1,0),
+												vec4(worldPosition, 0, 1));
+			mat4 worldViewProjection = viewProjection * world;
+	    gl_Position = worldViewProjection * vec4(position, 1.0);
+	    vColor = color;
+	  }
+	</script>
+
+	<script id="shader-fs" type="x-shader/x-fragment">
+		precision highp float;
 	  varying vec4 vColor;
 
 	  void main(void) {
@@ -22,24 +39,9 @@
 	  }
 	</script>
 
-	<script id="shader-vs" type="x-shader/x-vertex">
-	  attribute vec3 aVertexPosition;
-	  attribute vec4 aVertexColor;
-
-	  uniform mat4 uMVMatrix;
-	  uniform mat4 uPMatrix;
-
-	  varying vec4 vColor;
-
-	  void main(void) {
-	    gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
-	    vColor = aVertexColor;
-	  }
-	</script>
-
 	<body>
 		<canvas id="2d-canvas" class="canvas-2d" width="900" height="600"></canvas>
 		<canvas id="main-canvas" width="900" height="600"></canvas>
-	  <script src="index.js"></script>
+	  <script src="index2.js"></script>
   </body>
 </html>

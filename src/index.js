@@ -1,75 +1,48 @@
 (function() {
-  var drawable = (state) => ({
-    getCones: () => state.cones
-  });
-
-  var movable = (state) => ({
-    move: (timeDelta) => state.cones.forEach(c => {
-      c.x += state.xSpeed * timeDelta;
-      c.y += state.ySpeed * timeDelta;
-    })
-  });
-
-  var deceleratable = (state) => ({
-    decelerate: () => {
-      state.xSpeed *= 0.8;
-      if(Math.abs(state.xSpeed) < 1) {
-        state.xSpeed = 0;
-      }
-    }
-  });
-
-  var keyDownListener = (state) => ({
-    onKeyDown: state.onKeyDown
-  });
-
-  var gravityAffected = (state) => ({
-    gravity: (timeDelta) => state.ySpeed += timeDelta * state.gravity / 100
-  });
-
-  var cone = ({x, y, colorArray}) =>
-    ({ x, y, colorArray: new Float32Array(colorArray) });
-
-  var point = ({x, y, colorArray}) => {
-    var state = {
-      cones: [cone({x, y, colorArray})]
+  var point = ({x, y, colorArray, rand}) => {
+    return {
+      cones: [{x, y, colorArray: new Float32Array(colorArray), rand}]
     };
-    return Object.assign(
-      {},
-      drawable(state)
-    );
   }
 
-  var player = (x, y, colorArray) => {
+  var player = (x, y, color) => {
+    var colorArray = new Float32Array(color);
     var state = {
       cones: [
-        cone({x: x, y: y, colorArray}),
-        cone({x: x + 10, y: y, colorArray}),
-        cone({x: x, y: y + 10, colorArray}),
-        cone({x: x + 10, y: y + 10, colorArray})
+        {x: x, y: y, colorArray, rand: Math.random()},
+        {x: x + 10, y: y, colorArray, rand: Math.random()},
+        {x: x, y: y + 10, colorArray, rand: Math.random()},
+        {x: x + 10, y: y + 10, colorArray, rand: Math.random()}
       ],
       xSpeed: 0.1,
       ySpeed: 0,
-      onKeyDown: key => {
-        switch(key) {
-          case '68':
-            state.xSpeed += 0.01;
-            break;
-          case '87':
-            state.ySpeed -= 0.01;
-            break;
-        }
+      keys: {
+        '68': () => state.xSpeed += 1,
+        '65': () => state.xSpeed -= 1,
+        '87': () => state.ySpeed -= 1,
+        '83': () => state.ySpeed += 1
       },
-      gravity: 10
+      onKeyDown: key => state.keys[key] && state.keys[key](),
+      gravityValue: 10,
+      // gravity: () => state.ySpeed += delta * state.gravityValue / 10,
+      gravity: () => undefined,
+      move: () => state.cones.forEach(c => {
+        c.x += state.xSpeed * delta;
+        c.y += state.ySpeed * delta;
+      }),
+      decelerate: () => {
+        state.xSpeed *= 0.98;
+        // if(Math.abs(state.xSpeed) < 1) {
+        //   state.xSpeed = 0;
+        // }
+      },
+      tick: () => {
+        state.gravity(delta);
+        state.move(delta);
+        state.decelerate(delta);
+      }
     };
-    return Object.assign(
-      {},
-      gravityAffected(state),
-      keyDownListener(state),
-      deceleratable(state),
-      movable(state),
-      drawable(state)
-    );
+    return state;
   }
 
   var mainCanvas = document.getElementById('main-canvas');
@@ -77,8 +50,8 @@
 
   var pMatrix;
   var mvMatrix;
-  var coneRadius = 20;
-  var fragments = 50;
+  var coneRadius = 30;
+  var fragments = 100;
 
   var ratio = 1.5;
   var size = 30;
@@ -244,14 +217,15 @@
           return prev;
         }, []);
       return coordinates
-        .map(({x,y}) => {
+        .map(({x,y}, i) => {
           var yDelta = x%2 === 0 ? 0 : 0.5;
           // var xDelta = y%2 === 0 ? 0 : 0.5;
           var xDelta = 0.5;
           return {
             x: width / grid.xSize * (x + xDelta),
             y: height / grid.ySize * (y + yDelta),
-            colorArray: y/grid.ySize < 0.8 ? blue(y / grid.ySize) : green()
+            colorArray: y/grid.ySize < 0.8 ? blue(y / grid.ySize) : green(),
+            rand: Math.random() * 10
           }
         });
     },
@@ -324,46 +298,45 @@
   }
 
   var game = {
-    collections: [],
-    actions: [],
+    elems: [],
     keysDown: {},
     keyDownListeners: [],
     init: () => {
       document.addEventListener('keydown', (e) => game.keysDown[e.keyCode] = true, false);
-      document.addEventListener('keyup', (e) => {
-        delete game.keysDown['' + e.keyCode];
-      }, false);
+      document.addEventListener('keyup', (e) => delete game.keysDown['' + e.keyCode], false);
     },
-    tick: (delta) => {
+    tick: () => {
       for(key in game.keysDown) {
-        game.keyDownListeners.forEach(elem => elem.onKeyDown(key));
+        player.onKeyDown(key);
       }
-      game.actions.forEach(action =>
-        game.collections[action].forEach(p => p[action](delta)));
+      game.elems.forEach(elem => elem.tick());
     },
     add: elem => {
-      if(elem.onKeyDown) {
-        game.keyDownListeners.push(elem);
-      }
-      game.actions.forEach(action => {
-        if(elem[action]) {
-          game.collections[action].push(elem);
-        }
-      });
-    },
-    setActions: (...actions) => {
-      actions.forEach(action => {
-        game.collections[action] = [];
-        game.actions.push(action);
-      });
+      game.elems.push(elem);
     }
   };
 
-  game.setActions('gravity', 'move', 'decelerate');
-
   var gui = {
     cones: [],
+    init: () => {
+      gl.bindBuffer(gl.ARRAY_BUFFER, coneVertexPositionBuffer);
+      gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, coneVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+      gl.clearColor(0.0, 0.0, 0.0, 1.0);
+      gl.clearDepth(1.0);
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthFunc(gl.LEQUAL);
+
+      gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      ortho(0, gl.viewportWidth, gl.viewportHeight, 0, -5, 5000);
+      gl.disable(gl.BLEND);
+    },
+    cos: null,
+    sin: null,
     redraw: () => {
+      gui.cos = Math.cos(elapsed/300);
+      gui.sin = Math.sin(elapsed/300);
       gl2d.clearRect(0, 0, canvas2d.width, canvas2d.height);
       gui.cones.forEach(gui.drawCone);
     },
@@ -377,8 +350,7 @@
       	return;
       }
 
-      var m = Matrix.Translation($V([p.x, p.y, 0.0])).ensure4x4();
-      mvMatrix = Matrix.I(4).x(m);
+      mvMatrix = Matrix.Translation($V([p.x + gui.cos * p.rand, p.y + gui.sin * p.rand, 0.0])).ensure4x4();
 
       gl.bindBuffer(gl.ARRAY_BUFFER, pointVertexColorBuffer);
       gl.bufferData(gl.ARRAY_BUFFER, p.colorArray, gl.STATIC_DRAW);
@@ -390,7 +362,6 @@
 
       gl.drawArrays(gl.TRIANGLES, 0, coneVertexPositionBuffer.numItems);
       // gui.drawCircle2D(gl2d, p.x, p.y, 1);
-      gl.disable(gl.BLEND);
     },
     drawCircle2D: (ctx, x, y, radius) => {
       ctx.beginPath();
@@ -402,8 +373,8 @@
       ctx.fill();
     },
     add: elem => {
-      if(elem.getCones) {
-        gui.cones = gui.cones.concat(elem.getCones());
+      if(elem.cones) {
+        gui.cones = gui.cones.concat(elem.cones);
       }
     }
   };
@@ -422,24 +393,14 @@
   game.add(player);
 
   game.init();
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, coneVertexPositionBuffer);
-  gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, coneVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-  gl.clearColor(0.0, 0.0, 0.0, 1.0);
-  gl.clearDepth(1.0);
-  gl.enable(gl.DEPTH_TEST);
-  gl.depthFunc(gl.LEQUAL);
-
-  gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  ortho(0, gl.viewportWidth, gl.viewportHeight, 0, -5, 5000);
+  gui.init();
 
   var elapsed = 0;
+  var delta;
   function loop(timestamp) {
-    var delta = timestamp - elapsed;
+    delta = (timestamp - elapsed) / 100;
     elapsed = timestamp;
-    game.tick(delta/100);
+    game.tick();
     gui.redraw();
     window.requestAnimationFrame(loop);
   };
