@@ -32,45 +32,62 @@
 
   // Set up cone- and color arrays
   var getNextColor = colorFactory(1000);
+  var degToRad = Math.PI / 180.0;
+  var degInc = 360.0/fragments;
+  var coneHeight = coneRadius / Math.tan(45 * degToRad);
 
-  var count = 10;
+  var count = 100;
   var colors = [];
   var positions = [];
   var worldPositions = [];
-  for(var x = 0; x < count; x++) {
-    for(var y = 0; y < count; y++) {
+  var t1 = performance.now();
+  for(var x = (width/count)/2; x < width; x += width/count) {
+    var rowPositions = [];
+    var rowWorldPositions = [];
+    var rowColors = [];
+    for(var y = (height/count)/2; y < height; y += height/count) {
       var color = getNextColor();
-      var worldPosition = [x * width/count, y * height/count, 0];
+      var worldPosition = [x, y, 0];
 
-      var degInc = 360.0/fragments;
-      var coneHeight = coneRadius / Math.tan(45 * Math.PI / 180.0);
+      var elementPositions = [];
+      var elementWorldPositions = [];
+      var elementColors = [];
 
       var curDeg = 0;
       for(var i = 0; i < fragments; i++) {
-        positions = positions.concat([0,0,0]);
-        worldPositions = worldPositions.concat(worldPosition);
-        colors = colors.concat(color);
+        elementPositions = elementPositions.concat([0,0,0]);
+        elementWorldPositions = elementWorldPositions.concat(worldPosition);
+        elementColors = elementColors.concat(color);
 
-        positions = positions.concat([
-          coneRadius * Math.cos(curDeg * Math.PI / 180.0),
-          coneRadius * Math.sin(curDeg * Math.PI / 180.0),
+        elementPositions = elementPositions.concat([
+          coneRadius * Math.cos(curDeg * degToRad),
+          coneRadius * Math.sin(curDeg * degToRad),
           -1.0 * coneHeight
         ]);
-        worldPositions = worldPositions.concat(worldPosition);
-        colors = colors.concat(color);
+        elementWorldPositions = elementWorldPositions.concat(worldPosition);
+        elementColors = elementColors.concat(color);
 
-        positions = positions.concat([
-          coneRadius * Math.cos((curDeg + degInc) * Math.PI / 180.0),
-          coneRadius * Math.sin((curDeg + degInc) * Math.PI / 180.0),
+        elementPositions = elementPositions.concat([
+          coneRadius * Math.cos((curDeg + degInc) * degToRad),
+          coneRadius * Math.sin((curDeg + degInc) * degToRad),
           -1.0 * coneHeight
         ]);
-        worldPositions = worldPositions.concat(worldPosition);
-        colors = colors.concat(color);
+        elementWorldPositions = elementWorldPositions.concat(worldPosition);
+        elementColors = elementColors.concat(color);
 
         curDeg += degInc;
       }
+
+      rowPositions = rowPositions.concat(elementPositions);
+      rowWorldPositions = rowWorldPositions.concat(elementWorldPositions);
+      rowColors = rowColors.concat(elementColors);
     }
+
+    positions = positions.concat(rowPositions);
+    worldPositions = worldPositions.concat(rowWorldPositions);
+    colors = colors.concat(rowColors);
   }
+  console.log(performance.now() - t1);
 
   console.log(colors.length / 4, worldPositions.length / 3, positions.length / 3, count * count * fragments);
   console.log({colors, worldPositions, positions});
