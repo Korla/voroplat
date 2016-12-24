@@ -1,6 +1,7 @@
 canvas {
   border: none;
   position: absolute;
+  border: 1px solid black;
 }
 
 .canvas-2d {
