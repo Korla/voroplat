@@ -9,15 +9,23 @@
 
 	<script id="shader-vs" type="x-shader/x-vertex">
 		attribute vec3 position;
+		attribute vec3 positionDisplacement;
 		attribute vec4 color;
 		attribute vec3 worldPosition;
+		attribute vec3 clockOffset;
+		attribute vec3 clockSpeed;
+		attribute vec3 radius;
 
 		uniform mat4 viewProjection;
+		uniform float clock;
 
 		varying vec4 vColor;
 
 		void main(void) {
-			gl_Position = viewProjection * vec4(worldPosition + position, 1.0);
+			vec3 clocks = clockOffset + (clockSpeed * clock);
+			vec3 t = vec3(sin(clocks.x), cos(clocks.y), 0);
+			vec3 position2 = position + worldPosition + positionDisplacement + t * radius;
+			gl_Position = viewProjection * vec4(position2, 1.0);
 			vColor = color;
 		}
 	</script>
