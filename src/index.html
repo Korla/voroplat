@@ -1,45 +1,52 @@
 <html>
 <head>
 	<title>VoroPlat</title>
-  <link rel="stylesheet" href="index.css"/>
-  <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Molengo">
-  <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Cantarell">
-  <link rel="stylesheet" type="text/css" href="http://alexbeutel.com/styles.css">
+	<link rel="stylesheet" href="index.css"/>
 </head>
 
-  <script src="sylvester.js"></script>
+	<script src="sylvester.js"></script>
 	<script src="glUtils.js"></script>
 
-	<script id="shader-fs" type="x-shader/x-fragment">
-	  #ifdef GL_ES
-		precision highp float;
-	  #endif
+	<script id="shader-vs" type="x-shader/x-vertex">
+		attribute vec3 position;
+		attribute vec3 positionDisplacement;
+		attribute vec4 color;
+		attribute vec3 worldPosition;
+		attribute vec3 clockOffset;
+		attribute vec3 clockSpeed;
+		attribute vec3 radius;
 
-	  varying vec4 vColor;
+		uniform mat4 viewProjection;
+		uniform float clock;
 
-	  void main(void) {
-	    gl_FragColor = vColor;
-	  }
+		uniform float zStart;
+		uniform float zFactor;
+
+		varying vec4 vColor;
+
+		void main(void) {
+			vec3 clocks = clockOffset + (clockSpeed * clock);
+			vec3 t = vec3(sin(clocks.x), cos(clocks.y), 0) * radius;
+			vec3 position2 = position + worldPosition + positionDisplacement + t;
+			gl_Position = viewProjection * vec4(position2, 1.0);
+
+			vec4 zStart = vec4(zStart, zStart, zStart, 0);
+			vec4 zValue = vec4(position.z, position.z, position.z, 0);
+			vec4 zFactor = vec4(zFactor, zFactor, zFactor, 1);
+			vColor = zStart + color + zValue / zFactor;
+		}
 	</script>
 
-	<script id="shader-vs" type="x-shader/x-vertex">
-	  attribute vec3 aVertexPosition;
-	  attribute vec4 aVertexColor;
+	<script id="shader-fs" type="x-shader/x-fragment">
+		precision highp float;
+		varying vec4 vColor;
 
-	  uniform mat4 uMVMatrix;
-	  uniform mat4 uPMatrix;
-
-	  varying vec4 vColor;
-
-	  void main(void) {
-	    gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
-	    vColor = aVertexColor;
-	  }
+		void main(void) {
+			gl_FragColor = vColor;
+		}
 	</script>
 
 	<body>
-		<canvas id="2d-canvas" class="canvas-2d" width="900" height="600"></canvas>
-		<canvas id="main-canvas" width="900" height="600"></canvas>
-	  <script src="index.js"></script>
-  </body>
+		<script src="index3.js"></script>
+	</body>
 </html>

@@ -1,13 +1,57 @@
 (function() {
+  var point = ({x, y, colorArray, rand}) => {
+    return {
+      cones: [{x, y, colorArray: new Float32Array(colorArray), rand}]
+    };
+  }
+
+  var player = (x, y, color) => {
+    var colorArray = new Float32Array(color);
+    var state = {
+      cones: [
+        {x: x, y: y, colorArray, rand: Math.random()},
+        {x: x + 10, y: y, colorArray, rand: Math.random()},
+        {x: x, y: y + 10, colorArray, rand: Math.random()},
+        {x: x + 10, y: y + 10, colorArray, rand: Math.random()}
+      ],
+      xSpeed: 0.1,
+      ySpeed: 0,
+      keys: {
+        '68': () => state.xSpeed += 1,
+        '65': () => state.xSpeed -= 1,
+        '87': () => state.ySpeed -= 1,
+        '83': () => state.ySpeed += 1
+      },
+      onKeyDown: key => state.keys[key] && state.keys[key](),
+      gravityValue: 10,
+      // gravity: () => state.ySpeed += delta * state.gravityValue / 10,
+      gravity: () => undefined,
+      move: () => state.cones.forEach(c => {
+        c.x += state.xSpeed * delta;
+        c.y += state.ySpeed * delta;
+      }),
+      decelerate: () => {
+        state.xSpeed *= 0.98;
+        // if(Math.abs(state.xSpeed) < 1) {
+        //   state.xSpeed = 0;
+        // }
+      },
+      tick: () => {
+        state.gravity(delta);
+        state.move(delta);
+        state.decelerate(delta);
+      }
+    };
+    return state;
+  }
+
   var mainCanvas = document.getElementById('main-canvas');
   var canvas2d = document.getElementById('2d-canvas');
 
   var pMatrix;
   var mvMatrix;
-  var points = [];
-  var player = [];
-  var coneRadius = 20;
-  var fragments = 50;
+  var coneRadius = 30;
+  var fragments = 100;
 
   var ratio = 1.5;
   var size = 30;
@@ -173,16 +217,23 @@
           return prev;
         }, []);
       return coordinates
-        .map(({x,y}) => {
+        .map(({x,y}, i) => {
           var yDelta = x%2 === 0 ? 0 : 0.5;
           // var xDelta = y%2 === 0 ? 0 : 0.5;
           var xDelta = 0.5;
           return {
             x: width / grid.xSize * (x + xDelta),
             y: height / grid.ySize * (y + yDelta),
-            col: y/grid.ySize < 0.8 ? blue(y / grid.ySize) : green()
+            colorArray: y/grid.ySize < 0.8 ? blue(y / grid.ySize) : green(),
+            rand: Math.random() * 10
           }
         });
+    },
+    createPlayer: () => {
+      var x = 50;
+      var y = 460;
+      var colorArray = fragmentsColor(fragments * 3, [0.5,0.5,0.5,1]);
+      return player(x, y, colorArray);
     }
   }
 
@@ -216,12 +267,14 @@
 
     	var [x,y] = drawTools.getCursorPosition(e);
 
-    	player = [
-        new Point(x, y, drawTools.curColor, fragments*3),
-        new Point(x + 10, y, drawTools.curColor, fragments*3),
-        new Point(x, y + 10, drawTools.curColor, fragments*3),
-        new Point(x + 10, y + 10, drawTools.curColor, fragments*3)
-      ];
+      player[0].x = x;
+      player[0].y = y;
+      player[1].x = x + 10;
+      player[1].y = y;
+      player[2].x = x;
+      player[2].y = y + 10;
+      player[3].x = x + 10;
+      player[3].y = y + 10;
     }
   };
 
@@ -244,34 +297,48 @@
     }
   }
 
-  var {gl, gl2d, width, height} = setup.initGL(mainCanvas, canvas2d);
-  var shaderProgram = setup.initShaders();
-  var coneVertexPositionBuffer = setup.genCone();
-  var pointVertexPositionBuffer = setup.genPointCone();
-  var pointVertexColorBuffer = setup.pointColor();
-  setup.initEventListeners(mainCanvas, canvas2d);
-  setup.generateEnv(grid).forEach(addCone);
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, coneVertexPositionBuffer);
-  gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, coneVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-  gl.clearColor(0.0, 0.0, 0.0, 1.0);
-  gl.clearDepth(1.0);
-  gl.enable(gl.DEPTH_TEST);
-  gl.depthFunc(gl.LEQUAL);
-
-  gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  ortho(0, gl.viewportWidth, gl.viewportHeight, 0, -5, 5000);
-
   var game = {
-    tick: (timestamp) => {}
+    elems: [],
+    keysDown: {},
+    keyDownListeners: [],
+    init: () => {
+      document.addEventListener('keydown', (e) => game.keysDown[e.keyCode] = true, false);
+      document.addEventListener('keyup', (e) => delete game.keysDown['' + e.keyCode], false);
+    },
+    tick: () => {
+      for(key in game.keysDown) {
+        player.onKeyDown(key);
+      }
+      game.elems.forEach(elem => elem.tick());
+    },
+    add: elem => {
+      game.elems.push(elem);
+    }
   };
 
   var gui = {
+    cones: [],
+    init: () => {
+      gl.bindBuffer(gl.ARRAY_BUFFER, coneVertexPositionBuffer);
+      gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, coneVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+      gl.clearColor(0.0, 0.0, 0.0, 1.0);
+      gl.clearDepth(1.0);
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthFunc(gl.LEQUAL);
+
+      gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      ortho(0, gl.viewportWidth, gl.viewportHeight, 0, -5, 5000);
+      gl.disable(gl.BLEND);
+    },
+    cos: null,
+    sin: null,
     redraw: () => {
-      points.forEach(gui.drawCone);
-      player.forEach(gui.drawCone);
+      gui.cos = Math.cos(elapsed/300);
+      gui.sin = Math.sin(elapsed/300);
+      gl2d.clearRect(0, 0, canvas2d.width, canvas2d.height);
+      gui.cones.forEach(gui.drawCone);
     },
     drawCone: p => {
       if(
@@ -283,8 +350,7 @@
       	return;
       }
 
-      var m = Matrix.Translation($V([p.x, p.y, 0.0])).ensure4x4();
-      mvMatrix = Matrix.I(4).x(m);
+      mvMatrix = Matrix.Translation($V([p.x + gui.cos * p.rand, p.y + gui.sin * p.rand, 0.0])).ensure4x4();
 
       gl.bindBuffer(gl.ARRAY_BUFFER, pointVertexColorBuffer);
       gl.bufferData(gl.ARRAY_BUFFER, p.colorArray, gl.STATIC_DRAW);
@@ -296,7 +362,6 @@
 
       gl.drawArrays(gl.TRIANGLES, 0, coneVertexPositionBuffer.numItems);
       // gui.drawCircle2D(gl2d, p.x, p.y, 1);
-      gl.disable(gl.BLEND);
     },
     drawCircle2D: (ctx, x, y, radius) => {
       ctx.beginPath();
@@ -306,34 +371,43 @@
       ctx.stroke();
       ctx.fillStyle = '#000';
       ctx.fill();
+    },
+    add: elem => {
+      if(elem.cones) {
+        gui.cones = gui.cones.concat(elem.cones);
+      }
     }
   };
 
-  (function loop(timestamp) {
-    game.tick(timestamp);
+  var {gl, gl2d, width, height} = setup.initGL(mainCanvas, canvas2d);
+  var shaderProgram = setup.initShaders();
+  var coneVertexPositionBuffer = setup.genCone();
+  var pointVertexPositionBuffer = setup.genPointCone();
+  var pointVertexColorBuffer = setup.pointColor();
+  setup.initEventListeners(mainCanvas, canvas2d);
+  setup.generateEnv(grid)
+    .map(point)
+    .forEach(gui.add);
+  var player = setup.createPlayer();
+  gui.add(player);
+  game.add(player);
+
+  game.init();
+  gui.init();
+
+  var elapsed = 0;
+  var delta;
+  function loop(timestamp) {
+    delta = (timestamp - elapsed) / 100;
+    elapsed = timestamp;
+    game.tick();
     gui.redraw();
     window.requestAnimationFrame(loop);
-  })();
-
-  function addCone({x, y, col}) {
-  	if(!col) col = fragmentsColor(fragments * 3);
-  	points = points.concat(new Point(x, y, col, fragments*3));
-  }
+  };
+  window.requestAnimationFrame(loop);
 
   function ortho(left, right, bottom, top, znear, zfar){
   	pMatrix = makeOrtho(left, right, bottom, top, znear, zfar)
-  }
-
-  function Point(x, y, colorArray, colorSize) {
-      this.x = x;
-      this.y = y;
-      this.colorArray = new Float32Array(colorArray);
-      this.colorSize = colorSize;
-      this.colorBuffer = null;
-      this.vx = null;
-      this.vy = null;
-      this.angle = null;
-      this.vfunc = null;
   }
 
   function fragmentsColor(size, color) {
