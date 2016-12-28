@@ -19,14 +19,21 @@
 		uniform mat4 viewProjection;
 		uniform float clock;
 
+		uniform float zStart;
+		uniform float zFactor;
+
 		varying vec4 vColor;
 
 		void main(void) {
 			vec3 clocks = clockOffset + (clockSpeed * clock);
-			vec3 t = vec3(sin(clocks.x), cos(clocks.y), 0);
-			vec3 position2 = position + worldPosition + positionDisplacement + t * radius;
+			vec3 t = vec3(sin(clocks.x), cos(clocks.y), 0) * radius;
+			vec3 position2 = position + worldPosition + positionDisplacement + t;
 			gl_Position = viewProjection * vec4(position2, 1.0);
-			vColor = color;
+
+			vec4 zStart = vec4(zStart, zStart, zStart, 0);
+			vec4 zValue = vec4(position.z, position.z, position.z, 0);
+			vec4 zFactor = vec4(zFactor, zFactor, zFactor, 1);
+			vColor = zStart + color + zValue / zFactor;
 		}
 	</script>
 
@@ -40,8 +47,6 @@
 	</script>
 
 	<body>
-		<canvas id="2d-canvas" class="canvas-2d" width="900" height="600"></canvas>
-		<canvas id="main-canvas" width="900" height="600"></canvas>
 		<script src="index3.js"></script>
 	</body>
 </html>

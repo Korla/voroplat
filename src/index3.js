@@ -1,12 +1,15 @@
 (function(){
   var fragments = 50;
-  var coneRadius = 50;
+  var coneRadius = 100;
 
-  var mainCanvas = document.getElementById('main-canvas');
+  var mainCanvas = document.createElement('canvas');
+  document.body.appendChild(mainCanvas);
+  mainCanvas.width = mainCanvas.clientWidth;
+  mainCanvas.height = mainCanvas.clientHeight;
 
   // InitGL
-  var width = 900;
-  var height = 600;
+  var width = mainCanvas.clientWidth;
+  var height = mainCanvas.clientHeight;
   var gl;
   try {
     gl = mainCanvas.getContext('experimental-webgl');
@@ -31,14 +34,14 @@
   gl.useProgram(shaderProgram);
 
   //Gui init
-  gl.clearColor(0.0, 0.0, 0.0, 1.0);
-  gl.clearDepth(1.0);
+  // gl.clearColor(0.0, 0.0, 0.0, 1.0);
+  // gl.clearDepth(1.0);
   gl.enable(gl.DEPTH_TEST);
-  gl.depthFunc(gl.LEQUAL);
-  gl.disable(gl.BLEND);
+  // gl.depthFunc(gl.LEQUAL);
+  // gl.disable(gl.BLEND);
 
   gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   var viewProjection = new Float32Array(makeOrtho(0, gl.viewportWidth, gl.viewportHeight, 0, -5, 5000).flatten());
 
@@ -49,7 +52,7 @@
   var degInc = 360.0/fragments;
   var coneHeight = coneRadius / Math.tan(45 * degToRad);
 
-  var count = 30;
+  var count = 40;
 
   var createWorldData = worldDataCreator([
     'positions',
@@ -68,11 +71,12 @@
     var rowData = createWorldData();
 
     for(var y = (height/count)/2; y < height; y += height/count) {
-      var color = y / height < 0.8 ? blue(y / height) : green()
+      var color = blue(y / height);
+      // var color = y / height < 0.8 ? blue(y / height) : green();
       var worldPosition = [x, y, 0];
-      var positionDisplacement = [Math.random()*5, Math.random()*5, 0];
+      var positionDisplacement = [Math.random()*25, Math.random()*25, 0];
       var clockOffset = [0, 0, 0];
-      var clockSpeed = [Math.random()/300, Math.random()/300, 0];
+      var clockSpeed = [Math.random()/400, Math.random()/400, 0];
       var radius = [Math.random()*10, Math.random()*10, 0];
 
       var elementData = createWorldData();
@@ -150,7 +154,21 @@
 
   gl.uniformMatrix4fv(gl.getUniformLocation(shaderProgram, 'viewProjection'), false, viewProjection);
   var clockLocation = gl.getUniformLocation(shaderProgram, 'clock');
-  gl.uniform1f(clockLocation, 10.0);
+  gl.uniform1f(clockLocation, 0);
+
+
+  var uniformLocations = {
+    zStart: gl.getUniformLocation(shaderProgram, 'zStart'),
+    zFactor: gl.getUniformLocation(shaderProgram, 'zFactor'),
+  }
+  gl.uniform1f(uniformLocations.zStart, -0.5);
+  gl.uniform1f(uniformLocations.zFactor, -40.0);
+
+  window.setUniforms = data => {
+    for(var key of Object.keys(data)) {
+      gl.uniform1f(uniformLocations[key], data[key]);
+    }
+  }
 
   // Render
   var positionsToRender = new Float32Array(positions);
